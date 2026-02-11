@@ -78,7 +78,7 @@ src/
 
 ```bash
 # Clone the repository
-git clone https://github.com/YOUR_USERNAME/projex.git
+git clone https://github.com/jamshed-iqbal/projex.git
 
 # Navigate to the project
 cd projex
