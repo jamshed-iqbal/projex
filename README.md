@@ -90,7 +90,7 @@ npm install
 npm start
 ```
 
-Open [http://localhost:5173](http://localhost:5173) and click **"Quick Demo Login"** to explore the dashboard.
+Open [http://localhost:3000](http://localhost:3000) and click **"Quick Demo Login"** to explore the dashboard.
 
 ### Build for Production
 
