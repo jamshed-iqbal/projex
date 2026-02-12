@@ -1,6 +1,12 @@
 import { createSlice } from "@reduxjs/toolkit";
 import type { AuthState } from "@/types";
-import { loginUser, registerUser, logoutUser } from "./authThunks";
+import {
+  loginUser,
+  registerUser,
+  logoutUser,
+  guestLogin,
+  socialLogin,
+} from "./authThunks";
 
 const persistedUser = localStorage.getItem("projex-user");
 
@@ -35,17 +41,44 @@ const authSlice = createSlice({
         state.isLoading = false;
         state.error = action.payload as string;
       })
-      // Register
+      // Register — does NOT auto-login; redirects to login page
       .addCase(registerUser.pending, (state) => {
         state.isLoading = true;
         state.error = null;
       })
-      .addCase(registerUser.fulfilled, (state, action) => {
+      .addCase(registerUser.fulfilled, (state) => {
+        state.isLoading = false;
+        // Don't set user or isAuthenticated — user must sign in after registration
+      })
+      .addCase(registerUser.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload as string;
+      })
+      // Guest Login
+      .addCase(guestLogin.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(guestLogin.fulfilled, (state, action) => {
         state.isLoading = false;
         state.isAuthenticated = true;
         state.user = action.payload;
       })
-      .addCase(registerUser.rejected, (state, action) => {
+      .addCase(guestLogin.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload as string;
+      })
+      // Social Login
+      .addCase(socialLogin.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(socialLogin.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.isAuthenticated = true;
+        state.user = action.payload;
+      })
+      .addCase(socialLogin.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload as string;
       })

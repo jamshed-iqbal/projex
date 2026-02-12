@@ -11,54 +11,38 @@ import type { Theme } from "@/types";
 interface ThemeProviderState {
   theme: Theme;
   setTheme: (theme: Theme, event?: React.MouseEvent) => void;
-  resolvedTheme: "light" | "dark";
+  toggleTheme: (event?: React.MouseEvent) => void;
 }
 
-const ThemeContext = createContext<ThemeProviderState>({
-  theme: "system",
-  setTheme: () => null,
-  resolvedTheme: "light",
-});
-
-function getSystemTheme(): "light" | "dark" {
+function getSystemTheme(): Theme {
   if (typeof window === "undefined") return "light";
   return window.matchMedia("(prefers-color-scheme: dark)").matches
     ? "dark"
     : "light";
 }
 
+const ThemeContext = createContext<ThemeProviderState>({
+  theme: "light",
+  setTheme: () => null,
+  toggleTheme: () => null,
+});
+
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(() => {
-    if (typeof window === "undefined") return "system";
-    return (localStorage.getItem("projex-theme") as Theme) || "system";
-  });
-
-  const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">(() => {
     if (typeof window === "undefined") return "light";
-    const stored = localStorage.getItem("projex-theme") as Theme | null;
-    const current = stored || "system";
-    return current === "system" ? getSystemTheme() : current;
+    return (localStorage.getItem("projex-theme") as Theme) || getSystemTheme();
   });
 
   const applyTheme = useCallback((newTheme: Theme) => {
     const root = document.documentElement;
-    const resolved = newTheme === "system" ? getSystemTheme() : newTheme;
-
     root.classList.remove("light", "dark");
-    root.classList.add(resolved);
-    setResolvedTheme(resolved);
+    root.classList.add(newTheme);
   }, []);
 
   const setTheme = useCallback(
     (newTheme: Theme, event?: React.MouseEvent) => {
-      const resolved = newTheme === "system" ? getSystemTheme() : newTheme;
-
-      // Skip transition if the resolved theme is the same
-      if (resolved === resolvedTheme) {
-        localStorage.setItem("projex-theme", newTheme);
-        setThemeState(newTheme);
-        return;
-      }
+      // Skip transition if the theme is the same
+      if (newTheme === theme) return;
 
       // Get click coordinates for the circular reveal
       let x = window.innerWidth / 2;
@@ -111,7 +95,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         applyTheme(newTheme);
       }
     },
-    [applyTheme, resolvedTheme],
+    [applyTheme, theme],
+  );
+
+  const toggleTheme = useCallback(
+    (event?: React.MouseEvent) => {
+      setTheme(theme === "dark" ? "light" : "dark", event);
+    },
+    [theme, setTheme],
   );
 
   // Apply theme on mount (no transition)
@@ -119,20 +110,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setTimeout(() => applyTheme(theme), 0);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Listen for system theme changes
-  useEffect(() => {
-    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-    const handler = () => {
-      if (theme === "system") {
-        applyTheme("system");
-      }
-    };
-    mediaQuery.addEventListener("change", handler);
-    return () => mediaQuery.removeEventListener("change", handler);
-  }, [theme, applyTheme]);
-
   return (
-    <ThemeContext.Provider value={{ theme, setTheme, resolvedTheme }}>
+    <ThemeContext.Provider value={{ theme, setTheme, toggleTheme }}>
       {children}
     </ThemeContext.Provider>
   );

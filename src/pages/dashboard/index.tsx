@@ -86,6 +86,7 @@ const CHART_COLORS = [
 
 export default function DashboardPage() {
   const dispatch = useAppDispatch();
+  const { user } = useAppSelector((state) => state.auth);
   const { projects, isLoading: projectsLoading } = useAppSelector(
     (state) => state.projects,
   );
@@ -99,8 +100,28 @@ export default function DashboardPage() {
 
   const isLoading = projectsLoading || tasksLoading;
 
+  // Determine greeting based on time of day
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good morning";
+    if (hour < 17) return "Good afternoon";
+    return "Good evening";
+  };
+
+  const firstName = user?.name?.split(" ")[0] || "there";
+
   return (
     <div className="flex flex-col gap-6 p-6">
+      {/* Welcome Greeting */}
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">
+          {getGreeting()}, {firstName}
+        </h1>
+        <p className="text-muted-foreground">
+          Here&apos;s what&apos;s happening with your projects today.
+        </p>
+      </div>
+
       {/* Stats Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {statCards.map((stat) => (

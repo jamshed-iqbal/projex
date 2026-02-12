@@ -17,8 +17,8 @@ A full-featured project management dashboard built with React 19, TypeScript, Ta
 - **Projects Management** — Grid/List view toggle, filterable by status (Active, Completed, On Hold, Archived), searchable, with progress tracking and team avatars
 - **Team Members** — Team directory with roles, departments, status indicators, task statistics, and search functionality
 - **Settings** — Tabbed interface (Profile, Appearance, Notifications, Security) with form validation
-- **Authentication** — Login/Register pages with social login (Google, GitHub, Apple) and form validation
-- **Dark/Light/System Theme** — Smooth animated theme transitions with system preference detection
+- **Authentication** — Login and Register pages with form validation. Supports **guest access** to quickly explore the dashboard (some features like profile editing are limited in guest mode)
+- **Dark/Light Theme** — One-click theme toggle with smooth animated circular transitions
 - **Responsive Sidebar** — Collapsible sidebar navigation with compact icon mode
 
 ## Tech Stack
@@ -117,7 +117,7 @@ React Hook Form with Zod schema validation for all forms (login, register, setti
 
 ### Theming
 
-CSS custom properties with Tailwind CSS 4 `@theme` directive. Theme switching uses the **View Transitions API** with a circular clip-path reveal animation that expands from the click position. Supports light, dark, and system preference modes.
+CSS custom properties with Tailwind CSS 4 `@theme` directive. Theme switching uses the **View Transitions API** with a circular clip-path reveal animation that expands from the click position. Defaults to the user's OS preference on first visit.
 
 ## License
 

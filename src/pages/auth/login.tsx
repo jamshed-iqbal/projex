@@ -1,12 +1,23 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod/v4";
-import { Loader2, Zap } from "lucide-react";
+import {
+  AlertCircle,
+  CheckCircle2,
+  Eye,
+  EyeOff,
+  KeyRound,
+  Loader2,
+  Mail,
+  ShieldCheck,
+  UserRound,
+  Zap,
+} from "lucide-react";
+import { toast } from "sonner";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
-import { loginUser } from "@/features/auth/authThunks";
-import { socialLogin } from "@/features/auth/authThunks";
+import { loginUser, guestLogin } from "@/features/auth/authThunks";
 import { clearError } from "@/features/auth/authSlice";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,22 +29,439 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSlot,
+} from "@/components/ui/input-otp";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 
 const loginSchema = z.object({
-  email: z.email("Please enter a valid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  email: z
+    .string()
+    .min(1, "Please enter your email")
+    .email("Please enter a valid email"),
+  password: z.string().min(1, "Please enter your password"),
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
+type ForgotStep = "email" | "otp" | "password" | "success";
+
+// ---------- Forgot Password Dialog Component ----------
+function ForgotPasswordDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const [step, setStep] = useState<ForgotStep>("email");
+  const [email, setEmail] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [generatedOtp, setGeneratedOtp] = useState("");
+  const [otpValue, setOtpValue] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [otpDisplay, setOtpDisplay] = useState("");
+
+  const resetState = useCallback(() => {
+    setStep("email");
+    setEmail("");
+    setError("");
+    setLoading(false);
+    setGeneratedOtp("");
+    setOtpValue("");
+    setNewPassword("");
+    setConfirmPassword("");
+    setShowPassword(false);
+    setShowConfirmPassword(false);
+    setOtpDisplay("");
+  }, []);
+
+  const handleOpenChange = (open: boolean) => {
+    if (!open) resetState();
+    onOpenChange(open);
+  };
+
+  // Step 1: Validate email
+  const handleEmailSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+
+    if (!email.trim()) {
+      setError("Please enter your email address");
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError("Please enter a valid email address");
+      return;
+    }
+
+    setLoading(true);
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+
+    const registeredUsers = JSON.parse(
+      localStorage.getItem("projex-registered-users") || "[]",
+    );
+    const userExists = registeredUsers.some(
+      (u: { email: string }) => u.email === email,
+    );
+
+    setLoading(false);
+
+    if (!userExists) {
+      setError("No account found with this email address");
+      return;
+    }
+
+    // Generate a 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    setGeneratedOtp(otp);
+    setOtpDisplay(otp);
+    setStep("otp");
+  };
+
+  // Step 2: Verify OTP
+  const handleOtpSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+
+    if (otpValue.length !== 6) {
+      setError("Please enter the complete 6-digit code");
+      return;
+    }
+
+    setLoading(true);
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    setLoading(false);
+
+    if (otpValue !== generatedOtp) {
+      setError("Invalid verification code. Please try again.");
+      return;
+    }
+
+    setStep("password");
+  };
+
+  // Step 3: Reset password
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+
+    if (!newPassword) {
+      setError("Please enter a new password");
+      return;
+    }
+    if (newPassword.length < 8) {
+      setError("Password must be at least 8 characters");
+      return;
+    }
+    if (!confirmPassword) {
+      setError("Please confirm your new password");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError("Passwords don't match");
+      return;
+    }
+
+    setLoading(true);
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    // Update password in localStorage
+    const storedPasswords: Record<string, string> = JSON.parse(
+      localStorage.getItem("projex-user-passwords") || "{}",
+    );
+    storedPasswords[email] = newPassword;
+    localStorage.setItem(
+      "projex-user-passwords",
+      JSON.stringify(storedPasswords),
+    );
+
+    setLoading(false);
+    setStep("success");
+  };
+
+  const stepIcons = {
+    email: <Mail className="h-6 w-6 text-primary" />,
+    otp: <ShieldCheck className="h-6 w-6 text-primary" />,
+    password: <KeyRound className="h-6 w-6 text-primary" />,
+    success: <CheckCircle2 className="h-6 w-6 text-emerald-500" />,
+  };
+
+  const stepTitles = {
+    email: "Reset your password",
+    otp: "Verify your identity",
+    password: "Create new password",
+    success: "Password updated!",
+  };
+
+  const stepDescriptions = {
+    email: "Enter the email address associated with your account.",
+    otp: "",
+    password: "Choose a strong password for your account.",
+    success: "Your password has been reset successfully. You can now sign in with your new password.",
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <div
+            className={`mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full ${
+              step === "success" ? "bg-emerald-500/10" : "bg-primary/10"
+            }`}
+          >
+            {stepIcons[step]}
+          </div>
+          <DialogTitle className="text-center">
+            {stepTitles[step]}
+          </DialogTitle>
+          {stepDescriptions[step] && (
+            <DialogDescription className="text-center">
+              {stepDescriptions[step]}
+            </DialogDescription>
+          )}
+        </DialogHeader>
+
+        {/* Step 1: Email */}
+        {step === "email" && (
+          <form onSubmit={handleEmailSubmit} className="space-y-4 pt-1">
+            {error && (
+              <div className="flex items-center gap-3 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <p>{error}</p>
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label htmlFor="forgot-email">Email address</Label>
+              <Input
+                id="forgot-email"
+                type="text"
+                placeholder="jamshed@projex.io"
+                autoComplete="email"
+                autoFocus
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+            <Button
+              type="submit"
+              className="w-full cursor-pointer"
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Verifying...
+                </>
+              ) : (
+                "Continue"
+              )}
+            </Button>
+            <p className="text-center text-xs text-muted-foreground">
+              Remember your password?{" "}
+              <button
+                type="button"
+                onClick={() => handleOpenChange(false)}
+                className="cursor-pointer font-medium text-primary underline-offset-4 hover:underline"
+              >
+                Back to sign in
+              </button>
+            </p>
+          </form>
+        )}
+
+        {/* Step 2: OTP Verification */}
+        {step === "otp" && (
+          <form onSubmit={handleOtpSubmit} className="space-y-4 pt-1">
+            <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-center">
+              <p className="text-xs text-muted-foreground">
+                Your verification code is
+              </p>
+              <p className="mt-1 font-mono text-2xl font-bold tracking-[0.3em] text-primary">
+                {otpDisplay}
+              </p>
+            </div>
+
+            {error && (
+              <div className="flex items-center gap-3 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <p>{error}</p>
+              </div>
+            )}
+
+            <div className="flex flex-col items-center gap-2">
+              <Label>Enter the 6-digit code</Label>
+              <InputOTP
+                maxLength={6}
+                value={otpValue}
+                onChange={setOtpValue}
+                autoFocus
+              >
+                <InputOTPGroup>
+                  <InputOTPSlot index={0} />
+                  <InputOTPSlot index={1} />
+                  <InputOTPSlot index={2} />
+                  <InputOTPSlot index={3} />
+                  <InputOTPSlot index={4} />
+                  <InputOTPSlot index={5} />
+                </InputOTPGroup>
+              </InputOTP>
+            </div>
+
+            <Button
+              type="submit"
+              className="w-full cursor-pointer"
+              disabled={loading || otpValue.length !== 6}
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Verifying...
+                </>
+              ) : (
+                "Verify Code"
+              )}
+            </Button>
+            <p className="text-center text-xs text-muted-foreground">
+              Didn&apos;t receive a code?{" "}
+              <button
+                type="button"
+                onClick={() => {
+                  const otp = Math.floor(
+                    100000 + Math.random() * 900000,
+                  ).toString();
+                  setGeneratedOtp(otp);
+                  setOtpDisplay(otp);
+                  setOtpValue("");
+                  setError("");
+                  toast.info("New code generated!");
+                }}
+                className="cursor-pointer font-medium text-primary underline-offset-4 hover:underline"
+              >
+                Resend code
+              </button>
+            </p>
+          </form>
+        )}
+
+        {/* Step 3: New Password */}
+        {step === "password" && (
+          <form onSubmit={handlePasswordSubmit} className="space-y-4 pt-1">
+            {error && (
+              <div className="flex items-center gap-3 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <p>{error}</p>
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label htmlFor="new-password">New Password</Label>
+              <div className="relative">
+                <Input
+                  id="new-password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="At least 8 characters"
+                  autoFocus
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
+                  tabIndex={-1}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirm-new-password">Confirm Password</Label>
+              <div className="relative">
+                <Input
+                  id="confirm-new-password"
+                  type={showConfirmPassword ? "text" : "password"}
+                  placeholder="Re-enter your password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
+                  tabIndex={-1}
+                >
+                  {showConfirmPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
+            </div>
+            <Button
+              type="submit"
+              className="w-full cursor-pointer"
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Updating password...
+                </>
+              ) : (
+                "Reset Password"
+              )}
+            </Button>
+          </form>
+        )}
+
+        {/* Step 4: Success */}
+        {step === "success" && (
+          <div className="space-y-4 pt-1">
+            <Button
+              className="w-full cursor-pointer"
+              onClick={() => {
+                handleOpenChange(false);
+                toast.success("Password reset complete!", {
+                  description: "You can now sign in with your new password.",
+                });
+              }}
+            >
+              Back to Sign In
+            </Button>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 export default function LoginPage() {
   const dispatch = useAppDispatch();
   const { isAuthenticated, isLoading, error } = useAppSelector(
     (state) => state.auth,
   );
-  const [socialLoading, setSocialLoading] = useState<string | null>(null);
+  const [guestLoading, setGuestLoading] = useState(false);
+  const [forgotOpen, setForgotOpen] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const {
     register,
@@ -56,24 +484,22 @@ export default function LoginPage() {
     await dispatch(loginUser(data));
   };
 
-  const handleSocialLogin = async (provider: string) => {
-    setSocialLoading(provider);
-    await dispatch(socialLogin(provider));
-    setSocialLoading(null);
+  const handleGuestLogin = async () => {
+    setGuestLoading(true);
+    dispatch(clearError());
+    await dispatch(guestLogin());
+    setGuestLoading(false);
   };
 
-  const handleDemoLogin = () => {
-    dispatch(loginUser({ email: "jamshed@projex.io", password: "demo123456" }));
-  };
 
   return (
-    <div className="relative flex min-h-svh items-center justify-center bg-gradient-to-br from-background via-background to-muted p-4">
+    <div className="relative flex min-h-svh items-center justify-center bg-linear-to-br from-background via-background to-muted p-4">
       {/* Theme toggle */}
       <div className="absolute right-4 top-4">
         <ThemeToggle />
       </div>
 
-      <div className="w-full max-w-md space-y-6">
+      <div className="w-full max-w-md space-y-4">
         {/* Logo */}
         <div className="flex flex-col items-center gap-2">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg">
@@ -85,6 +511,7 @@ export default function LoginPage() {
           </p>
         </div>
 
+        {/* Login Card */}
         <Card className="border-border/50 shadow-xl">
           <CardHeader className="text-center">
             <CardTitle className="text-xl">Welcome back</CardTitle>
@@ -92,92 +519,13 @@ export default function LoginPage() {
               Sign in to your account to continue
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Social Login Buttons */}
-            <div className="grid grid-cols-3 gap-3">
-              <Button
-                variant="outline"
-                className="w-full cursor-pointer"
-                onClick={() => handleSocialLogin("google")}
-                disabled={isLoading || !!socialLoading}
-              >
-                {socialLoading === "google" ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <svg className="h-4 w-4" viewBox="0 0 24 24">
-                    <path
-                      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"
-                      fill="#4285F4"
-                    />
-                    <path
-                      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                      fill="#34A853"
-                    />
-                    <path
-                      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                      fill="#FBBC05"
-                    />
-                    <path
-                      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                      fill="#EA4335"
-                    />
-                  </svg>
-                )}
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full cursor-pointer"
-                onClick={() => handleSocialLogin("github")}
-                disabled={isLoading || !!socialLoading}
-              >
-                {socialLoading === "github" ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <svg
-                    className="h-4 w-4"
-                    viewBox="0 0 24 24"
-                    fill="currentColor"
-                  >
-                    <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
-                  </svg>
-                )}
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full cursor-pointer"
-                onClick={() => handleSocialLogin("apple")}
-                disabled={isLoading || !!socialLoading}
-              >
-                {socialLoading === "apple" ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <svg
-                    className="h-4 w-4"
-                    viewBox="0 0 24 24"
-                    fill="currentColor"
-                  >
-                    <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z" />
-                  </svg>
-                )}
-              </Button>
-            </div>
-
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <Separator className="w-full" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">
-                  or continue with email
-                </span>
-              </div>
-            </div>
-
+          <CardContent className="space-y-5">
             {/* Login Form */}
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               {error && (
-                <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
-                  {error}
+                <div className="flex items-center gap-3 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  <p>{error}</p>
                 </div>
               )}
 
@@ -185,8 +533,9 @@ export default function LoginPage() {
                 <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
-                  type="email"
+                  type="text"
                   placeholder="jamshed@projex.io"
+                  autoComplete="email"
                   {...register("email")}
                   className={errors.email ? "border-destructive" : ""}
                 />
@@ -202,18 +551,33 @@ export default function LoginPage() {
                   <Label htmlFor="password">Password</Label>
                   <button
                     type="button"
-                    className="text-xs text-muted-foreground hover:text-primary underline-offset-4 hover:underline"
+                    onClick={() => setForgotOpen(true)}
+                    className="cursor-pointer text-xs text-muted-foreground underline-offset-4 hover:text-primary hover:underline"
                   >
                     Forgot password?
                   </button>
                 </div>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="Enter your password"
-                  {...register("password")}
-                  className={errors.password ? "border-destructive" : ""}
-                />
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Enter your password"
+                    {...register("password")}
+                    className={`pr-10 ${errors.password ? "border-destructive" : ""}`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
+                    tabIndex={-1}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
                 {errors.password && (
                   <p className="text-xs text-destructive">
                     {errors.password.message}
@@ -237,16 +601,6 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            <Button
-              variant="outline"
-              className="w-full cursor-pointer"
-              onClick={handleDemoLogin}
-              disabled={isLoading}
-            >
-              <Zap className="mr-2 h-4 w-4" />
-              Quick Demo Login
-            </Button>
-
             <p className="text-center text-sm text-muted-foreground">
               Don&apos;t have an account?{" "}
               <Link
@@ -258,7 +612,51 @@ export default function LoginPage() {
             </p>
           </CardContent>
         </Card>
+
+        {/* Separator + Guest Access */}
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <div
+              className="h-px flex-1"
+              style={{
+                backgroundImage:
+                  "linear-gradient(to right, transparent, #667eea, #764ba2)",
+              }}
+            />
+            <span className="text-xs uppercase tracking-wider text-muted-foreground">
+              or
+            </span>
+            <div
+              className="h-px flex-1"
+              style={{
+                backgroundImage:
+                  "linear-gradient(to left, transparent, #667eea, #764ba2)",
+              }}
+            />
+          </div>
+
+          <button
+            type="button"
+            onClick={handleGuestLogin}
+            disabled={isLoading || guestLoading}
+            className="group flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-size-[300%_100%] bg-position-[0%_0%] px-6 py-3 text-sm font-semibold text-white shadow-md transition-all duration-500 ease-in-out hover:bg-position-[100%_0%] hover:shadow-lg disabled:opacity-50"
+            style={{
+              backgroundImage:
+                "linear-gradient(to right, #667eea, #764ba2, #6B8DD6, #8E37D7)",
+            }}
+          >
+            {guestLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <UserRound className="h-4 w-4" />
+            )}
+            Continue as Guest
+          </button>
+        </div>
       </div>
+
+      {/* Forgot Password Dialog */}
+      <ForgotPasswordDialog open={forgotOpen} onOpenChange={setForgotOpen} />
     </div>
   );
 }

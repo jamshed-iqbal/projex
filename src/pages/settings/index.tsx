@@ -4,7 +4,6 @@ import { z } from "zod/v4";
 import { Save, User, Bell, Palette, Shield } from "lucide-react";
 import { useAppSelector } from "@/app/hooks";
 import { useTheme } from "@/providers/theme-provider";
-import type { Theme } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,13 +16,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -225,29 +217,33 @@ export default function SettingsPage() {
             <CardContent className="space-y-6">
               <div className="space-y-3">
                 <Label>Theme</Label>
-                <Select
-                  value={theme}
-                  onValueChange={(val) => setTheme(val as Theme)}
-                >
-                  <SelectTrigger className="w-64">
-                    <SelectValue placeholder="Select theme" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="light">Light</SelectItem>
-                    <SelectItem value="dark">Dark</SelectItem>
-                    <SelectItem value="system">System</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="flex items-center gap-3">
+                  <Button
+                    variant={theme === "light" ? "default" : "outline"}
+                    size="sm"
+                    className="cursor-pointer"
+                    onClick={(e) => setTheme("light", e)}
+                  >
+                    Light
+                  </Button>
+                  <Button
+                    variant={theme === "dark" ? "default" : "outline"}
+                    size="sm"
+                    className="cursor-pointer"
+                    onClick={(e) => setTheme("dark", e)}
+                  >
+                    Dark
+                  </Button>
+                </div>
                 <p className="text-xs text-muted-foreground">
-                  Select the theme for the dashboard. System will follow your OS
-                  preference.
+                  Select the theme for the dashboard.
                 </p>
               </div>
 
               <Separator />
 
-              <div className="grid gap-4 sm:grid-cols-3">
-                {(["light", "dark", "system"] as Theme[]).map((t) => (
+              <div className="grid gap-4 sm:grid-cols-2">
+                {(["light", "dark"] as const).map((t) => (
                   <button
                     key={t}
                     onClick={(e) => setTheme(t, e)}
@@ -259,22 +255,18 @@ export default function SettingsPage() {
                   >
                     <div
                       className={`rounded-lg p-4 ${
-                        t === "dark"
-                          ? "bg-zinc-900"
-                          : t === "light"
-                            ? "bg-white"
-                            : "bg-gradient-to-r from-white to-zinc-900"
+                        t === "dark" ? "bg-zinc-900" : "bg-white"
                       }`}
                     >
                       <div className="space-y-2">
                         <div
-                          className={`h-2 w-12 rounded ${t === "dark" ? "bg-zinc-700" : t === "light" ? "bg-gray-200" : "bg-gradient-to-r from-gray-200 to-zinc-700"}`}
+                          className={`h-2 w-12 rounded ${t === "dark" ? "bg-zinc-700" : "bg-gray-200"}`}
                         />
                         <div
-                          className={`h-2 w-20 rounded ${t === "dark" ? "bg-zinc-700" : t === "light" ? "bg-gray-200" : "bg-gradient-to-r from-gray-200 to-zinc-700"}`}
+                          className={`h-2 w-20 rounded ${t === "dark" ? "bg-zinc-700" : "bg-gray-200"}`}
                         />
                         <div
-                          className={`h-2 w-16 rounded ${t === "dark" ? "bg-zinc-700" : t === "light" ? "bg-gray-200" : "bg-gradient-to-r from-gray-200 to-zinc-700"}`}
+                          className={`h-2 w-16 rounded ${t === "dark" ? "bg-zinc-700" : "bg-gray-200"}`}
                         />
                       </div>
                     </div>

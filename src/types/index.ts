@@ -132,4 +132,4 @@ export interface ActivityItem {
 }
 
 // ---- Theme Types ----
-export type Theme = "light" | "dark" | "system";
+export type Theme = "light" | "dark";
