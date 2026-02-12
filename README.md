@@ -2,7 +2,7 @@
 
 A full-featured project management dashboard built with React 19, TypeScript, Tailwind CSS 4, and Redux Toolkit. Designed for teams to manage projects, track tasks across Kanban boards, and collaborate efficiently.
 
-**[Live Demo](https://projex-dashboard.vercel.app)** — Use **Continue as Guest** on the login page for quick access, no sign-up needed.
+**[Live Demo](https://projex-dashboard.vercel.app)** — Use **Continue as Guest** for quick access.
 
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white)
@@ -117,7 +117,7 @@ React Hook Form with Zod schema validation for all forms (login, register, setti
 
 ### Theming
 
-CSS custom properties with Tailwind CSS 4 `@theme` directive. Theme switching uses the **View Transitions API** with a circular clip-path reveal animation that expands from the click position. Defaults to the user's OS preference on first visit.
+CSS custom properties with Tailwind CSS 4 `@theme` directive. Theme switching uses the **View Transitions API** with a circular clip-path reveal animation that expands from the click position. Defaults to the user's OS preference.
 
 ## License
 
