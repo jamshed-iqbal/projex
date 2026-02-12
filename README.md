@@ -2,7 +2,7 @@
 
 A beautifully crafted, full-featured project management dashboard built with modern React technologies. ProjeX demonstrates production-quality frontend architecture, state management patterns, form handling, and responsive UI design.
 
-**<a href="https://projex-dashboard.vercel.app" target="_blank">Live Demo</a>** — Click "Quick Demo Login" to explore
+**[Live Demo](https://projex-dashboard.vercel.app)** — Click "Quick Demo Login" to explore
 
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white)
