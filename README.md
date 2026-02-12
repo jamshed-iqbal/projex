@@ -2,7 +2,7 @@
 
 A full-featured project management dashboard built with React 19, TypeScript, Tailwind CSS 4, and Redux Toolkit. Designed for teams to manage projects, track tasks across Kanban boards, and collaborate efficiently.
 
-**[Live Demo](https://projex-dashboard.vercel.app)**
+**[Live Demo](https://projex-dashboard.vercel.app)** — Use **Continue as Guest** on the login page for quick access, no sign-up needed.
 
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white)
